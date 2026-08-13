@@ -1,7 +1,10 @@
 package com.biblioteca.transactions_service.service;
 
+import com.biblioteca.transactions_service.client.CatalogClient;
+import com.biblioteca.transactions_service.dto.AjusteStockDto;
 import com.biblioteca.transactions_service.dto.AlquilerRequest;
 import com.biblioteca.transactions_service.dto.AlquilerResponse;
+import com.biblioteca.transactions_service.dto.LibroDto;
 import com.biblioteca.transactions_service.exception.EstadoInvalidoException;
 import com.biblioteca.transactions_service.exception.RecursoNoEncontradoException;
 import com.biblioteca.transactions_service.model.Alquiler;
@@ -17,17 +20,19 @@ import java.util.List;
 public class AlquilerService {
 
     private final AlquilerRepository alquilerRepository;
+    private final CatalogClient catalogClient;
 
-    public AlquilerService(AlquilerRepository alquilerRepository) {
+    public AlquilerService(AlquilerRepository alquilerRepository, CatalogClient catalogClient) {
         this.alquilerRepository = alquilerRepository;
+        this.catalogClient = catalogClient;
     }
 
     @Transactional
     public AlquilerResponse alquilar(AlquilerRequest request) {
-        // TODO (con OpenFeign):
-        //   1. Pedir el libro al catalog-service
-        //   2. Comprobar que hay stock (>= 1)
-        //   3. Pedir al catalog que baje el stock en 1
+        // Leer el libro (para el título) y bajar el stock en 1.
+        // El catalog valida el stock y responde 409 si no hay ejemplares.
+        LibroDto libro = catalogClient.obtenerLibro(request.getLibroId());
+        catalogClient.ajustarStock(request.getLibroId(), new AjusteStockDto(-1));
 
         Alquiler alquiler = new Alquiler();
         alquiler.setLibroId(request.getLibroId());
@@ -36,7 +41,7 @@ public class AlquilerService {
         alquiler.setFechaDevolucion(null);
         alquiler.setEstado(EstadoAlquiler.ACTIVO);
 
-        return aResponse(alquilerRepository.save(alquiler));
+        return aResponse(alquilerRepository.save(alquiler), libro.getTitulo());
     }
 
     @Transactional
@@ -49,30 +54,43 @@ public class AlquilerService {
             throw new EstadoInvalidoException("Este alquiler ya fue devuelto");
         }
 
-        // TODO (con OpenFeign): pedir al catalog que suba el stock en 1
+        // Devolver el ejemplar: subir el stock en 1
+        catalogClient.ajustarStock(alquiler.getLibroId(), new AjusteStockDto(1));
 
         alquiler.setEstado(EstadoAlquiler.DEVUELTO);
         alquiler.setFechaDevolucion(LocalDateTime.now());
 
-        return aResponse(alquilerRepository.save(alquiler));
+        return aResponse(alquilerRepository.save(alquiler), null);
     }
 
     public List<AlquilerResponse> listarTodos() {
-        return alquilerRepository.findAll()
-                .stream()
-                .map(Alquiler -> aResponse(Alquiler))
-                .toList();
-    }
+    return alquilerRepository.findAll()
+            .stream()
+            .map(alquiler -> {
+                String titulo = obtenerTituloSeguro(alquiler.getLibroId());
+                return aResponse(alquiler, titulo);
+            })
+            .toList();
+}
 
-    private AlquilerResponse aResponse(Alquiler alquiler) {
+    private AlquilerResponse aResponse(Alquiler alquiler, String tituloLibro) {
         return new AlquilerResponse(
                 alquiler.getId(),
                 alquiler.getLibroId(),
-                null,                 
+                tituloLibro,
                 alquiler.getCliente(),
                 alquiler.getFechaAlquiler(),
                 alquiler.getFechaDevolucion(),
                 alquiler.getEstado()
         );
     }
+
+    private String obtenerTituloSeguro(Long libroId) {
+    try {
+        LibroDto libro = catalogClient.obtenerLibro(libroId);
+        return libro.getTitulo();
+    } catch (Exception e) {
+        return null;
+    }
+}
 }
