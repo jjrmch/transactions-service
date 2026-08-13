@@ -30,7 +30,7 @@ public class VentaService {
         Venta venta = new Venta();
         venta.setLibroId(request.getLibroId());
         venta.setCantidad(request.getCantidad());
-        venta.setPrecioTotal(0.0);   // provisional: lo calcularemos con el precio real del libro
+        venta.setPrecioTotal(0.0);   
         venta.setCliente(request.getCliente());
         venta.setFecha(LocalDateTime.now());
 
@@ -40,7 +40,7 @@ public class VentaService {
     public List<VentaResponse> listarTodas() {
         return ventaRepository.findAll()
                 .stream()
-                .map(this::aResponse)
+                .map(Venta -> aResponse(Venta))
                 .toList();
     }
 
@@ -48,7 +48,7 @@ public class VentaService {
         return new VentaResponse(
                 venta.getId(),
                 venta.getLibroId(),
-                null,                 // tituloLibro: lo rellenaremos pidiéndolo al catalog
+                null,                 
                 venta.getCantidad(),
                 venta.getPrecioTotal(),
                 venta.getCliente(),
