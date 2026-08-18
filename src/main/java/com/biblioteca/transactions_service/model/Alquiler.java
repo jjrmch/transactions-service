@@ -19,7 +19,7 @@ public class Alquiler {
 
     private Long libroId;          
 
-    private String cliente;
+    private Long clienteId;
 
     private LocalDateTime fechaAlquiler;
 

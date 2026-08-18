@@ -23,7 +23,7 @@ public class Venta {
 
     private Double precioTotal;
 
-    private String cliente;
+    private Long clienteId;
 
     private LocalDateTime fecha;
 }

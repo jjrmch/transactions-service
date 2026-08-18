@@ -15,6 +15,7 @@ public class VentaResponse {
     private String tituloLibro;  
     private Integer cantidad;
     private Double precioTotal;
-    private String cliente;
+    private Long clienteId;
+    private String nombreCliente;
     private LocalDateTime fecha;
 }

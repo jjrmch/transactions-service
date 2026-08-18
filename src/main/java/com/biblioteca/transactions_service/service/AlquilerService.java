@@ -1,9 +1,11 @@
 package com.biblioteca.transactions_service.service;
 
 import com.biblioteca.transactions_service.client.CatalogClient;
+import com.biblioteca.transactions_service.client.CustomerClient;
 import com.biblioteca.transactions_service.dto.AjusteStockDto;
 import com.biblioteca.transactions_service.dto.AlquilerRequest;
 import com.biblioteca.transactions_service.dto.AlquilerResponse;
+import com.biblioteca.transactions_service.dto.ClienteDto;
 import com.biblioteca.transactions_service.dto.LibroDto;
 import com.biblioteca.transactions_service.exception.EstadoInvalidoException;
 import com.biblioteca.transactions_service.exception.RecursoNoEncontradoException;
@@ -21,10 +23,12 @@ public class AlquilerService {
 
     private final AlquilerRepository alquilerRepository;
     private final CatalogClient catalogClient;
+    private final CustomerClient customerClient;
 
-    public AlquilerService(AlquilerRepository alquilerRepository, CatalogClient catalogClient) {
+    public AlquilerService(AlquilerRepository alquilerRepository, CatalogClient catalogClient, CustomerClient customerClient) {
         this.alquilerRepository = alquilerRepository;
         this.catalogClient = catalogClient;
+        this.customerClient = customerClient;
     }
 
     @Transactional
@@ -36,7 +40,7 @@ public class AlquilerService {
 
         Alquiler alquiler = new Alquiler();
         alquiler.setLibroId(request.getLibroId());
-        alquiler.setCliente(request.getCliente());
+        alquiler.setClienteId(obtenerClienteSeguro(request.getClienteId()).getId());
         alquiler.setFechaAlquiler(LocalDateTime.now());
         alquiler.setFechaDevolucion(null);
         alquiler.setEstado(EstadoAlquiler.ACTIVO);
@@ -78,7 +82,8 @@ public class AlquilerService {
                 alquiler.getId(),
                 alquiler.getLibroId(),
                 tituloLibro,
-                alquiler.getCliente(),
+                alquiler.getClienteId(),
+                obtenerNombreClienteSeguro(alquiler.getClienteId()),
                 alquiler.getFechaAlquiler(),
                 alquiler.getFechaDevolucion(),
                 alquiler.getEstado()
@@ -89,6 +94,22 @@ public class AlquilerService {
     try {
         LibroDto libro = catalogClient.obtenerLibro(libroId);
         return libro.getTitulo();
+    } catch (Exception e) {
+        return null;
+    }
+}
+
+private ClienteDto obtenerClienteSeguro(Long clienteId) {
+    try {
+        return customerClient.obtenerCliente(clienteId);
+    } catch (Exception e) {
+        throw new RecursoNoEncontradoException("Cliente no encontrado con id: " + clienteId);
+    }
+}
+
+private String obtenerNombreClienteSeguro(Long clienteId) {
+    try {
+        return customerClient.obtenerCliente(clienteId).getNombre();
     } catch (Exception e) {
         return null;
     }

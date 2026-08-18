@@ -1,10 +1,13 @@
 package com.biblioteca.transactions_service.service;
 
 import com.biblioteca.transactions_service.client.CatalogClient;
+import com.biblioteca.transactions_service.client.CustomerClient;
 import com.biblioteca.transactions_service.dto.AjusteStockDto;
+import com.biblioteca.transactions_service.dto.ClienteDto;
 import com.biblioteca.transactions_service.dto.LibroDto;
 import com.biblioteca.transactions_service.dto.VentaRequest;
 import com.biblioteca.transactions_service.dto.VentaResponse;
+import com.biblioteca.transactions_service.exception.RecursoNoEncontradoException;
 import com.biblioteca.transactions_service.model.Venta;
 import com.biblioteca.transactions_service.repository.VentaRepository;
 import org.springframework.stereotype.Service;
@@ -18,10 +21,12 @@ public class VentaService {
 
     private final VentaRepository ventaRepository;
     private final CatalogClient catalogClient;
+    private final CustomerClient customerClient;
 
-    public VentaService(VentaRepository ventaRepository, CatalogClient catalogClient) {
+    public VentaService(VentaRepository ventaRepository, CatalogClient catalogClient, CustomerClient customerClient) {
         this.ventaRepository = ventaRepository;
         this.catalogClient = catalogClient;
+        this.customerClient = customerClient;
     }
 
     @Transactional
@@ -39,7 +44,7 @@ public class VentaService {
         venta.setLibroId(request.getLibroId());
         venta.setCantidad(request.getCantidad());
         venta.setPrecioTotal(libro.getPrecio() * request.getCantidad());
-        venta.setCliente(request.getCliente());
+        venta.setClienteId(obtenerClienteSeguro(request.getClienteId()).getId());
         venta.setFecha(LocalDateTime.now());
 
         Venta guardada = ventaRepository.save(venta);
@@ -63,7 +68,8 @@ public class VentaService {
                 tituloLibro,
                 venta.getCantidad(),
                 venta.getPrecioTotal(),
-                venta.getCliente(),
+                venta.getClienteId(),
+                obtenerNombreClienteSeguro(venta.getClienteId()),
                 venta.getFecha()
         );
     }
@@ -75,6 +81,22 @@ public class VentaService {
     } catch (Exception e) {
         // Si el catalog no responde o el libro ya no existe,
         // devolvemos null en vez de romper el listado entero.
+        return null;
+    }
+}
+
+private ClienteDto obtenerClienteSeguro(Long clienteId) {
+    try {
+        return customerClient.obtenerCliente(clienteId);
+    } catch (Exception e) {
+        throw new RecursoNoEncontradoException("Cliente no encontrado con id: " + clienteId);
+    }
+}
+
+private String obtenerNombreClienteSeguro(Long clienteId) {
+    try {
+        return customerClient.obtenerCliente(clienteId).getNombre();
+    } catch (Exception e) {
         return null;
     }
 }

@@ -14,7 +14,8 @@ public class AlquilerResponse {
     private Long id;
     private Long libroId;
     private String tituloLibro;   
-    private String cliente;
+    private Long clienteId;
+    private String nombreCliente;
     private LocalDateTime fechaAlquiler;
     private LocalDateTime fechaDevolucion;
     private EstadoAlquiler estado;

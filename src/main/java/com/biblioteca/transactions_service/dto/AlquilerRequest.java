@@ -10,6 +10,6 @@ public class AlquilerRequest {
     @NotNull(message = "El id del libro es obligatorio")
     private Long libroId;
 
-    @NotBlank(message = "El cliente es obligatorio")
-    private String cliente;
+    @NotNull(message = "El cliente es obligatorio")
+    private Long clienteId;
 }

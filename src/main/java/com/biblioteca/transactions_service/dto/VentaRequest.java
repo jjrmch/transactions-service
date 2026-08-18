@@ -15,6 +15,6 @@ public class VentaRequest {
     @Min(value = 1, message = "La cantidad debe ser al menos 1")
     private Integer cantidad;
 
-    @NotBlank(message = "El cliente es obligatorio")
-    private String cliente;
+    @NotNull(message = "El cliente es obligatorio")
+    private Long clienteId;
 }
