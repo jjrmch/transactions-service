@@ -33,19 +33,23 @@ public class AlquilerService {
 
     @Transactional
     public AlquilerResponse alquilar(AlquilerRequest request) {
-        // Leer el libro (para el título) y bajar el stock en 1.
-        // El catalog valida el stock y responde 409 si no hay ejemplares.
+        // Leer el libro (para el título)
         LibroDto libro = catalogClient.obtenerLibro(request.getLibroId());
+
+        // Validar el cliente ANTES de tocar el stock
+        ClienteDto cliente = obtenerClienteSeguro(request.getClienteId());
+
+        // Bajar el stock en 1. El catalog valida y responde 409 si no hay ejemplares.
         catalogClient.ajustarStock(request.getLibroId(), new AjusteStockDto(-1));
 
         Alquiler alquiler = new Alquiler();
         alquiler.setLibroId(request.getLibroId());
-        alquiler.setClienteId(obtenerClienteSeguro(request.getClienteId()).getId());
+        alquiler.setClienteId(cliente.getId());
         alquiler.setFechaAlquiler(LocalDateTime.now());
         alquiler.setFechaDevolucion(null);
         alquiler.setEstado(EstadoAlquiler.ACTIVO);
 
-        return aResponse(alquilerRepository.save(alquiler), libro.getTitulo());
+        return aResponse(alquilerRepository.save(alquiler), libro.getTitulo(), cliente.getNombre());
     }
 
     @Transactional
@@ -64,26 +68,26 @@ public class AlquilerService {
         alquiler.setEstado(EstadoAlquiler.DEVUELTO);
         alquiler.setFechaDevolucion(LocalDateTime.now());
 
-        return aResponse(alquilerRepository.save(alquiler), null);
+        return aResponse(alquilerRepository.save(alquiler), null,
+                obtenerNombreClienteSeguro(alquiler.getClienteId()));
     }
 
     public List<AlquilerResponse> listarTodos() {
     return alquilerRepository.findAll()
             .stream()
-            .map(alquiler -> {
-                String titulo = obtenerTituloSeguro(alquiler.getLibroId());
-                return aResponse(alquiler, titulo);
-            })
+            .map(alquiler -> aResponse(alquiler,
+                    obtenerTituloSeguro(alquiler.getLibroId()),
+                    obtenerNombreClienteSeguro(alquiler.getClienteId())))
             .toList();
 }
 
-    private AlquilerResponse aResponse(Alquiler alquiler, String tituloLibro) {
+    private AlquilerResponse aResponse(Alquiler alquiler, String tituloLibro, String nombreCliente) {
         return new AlquilerResponse(
                 alquiler.getId(),
                 alquiler.getLibroId(),
                 tituloLibro,
                 alquiler.getClienteId(),
-                obtenerNombreClienteSeguro(alquiler.getClienteId()),
+                nombreCliente,
                 alquiler.getFechaAlquiler(),
                 alquiler.getFechaDevolucion(),
                 alquiler.getEstado()

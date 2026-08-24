@@ -7,6 +7,6 @@ public class ClienteDto {
     private Long id;
     private String nombre;
     private String email;
-    private String direccion;
+    private String telefono;
 }
     

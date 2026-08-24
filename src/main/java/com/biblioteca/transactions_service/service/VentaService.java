@@ -34,34 +34,37 @@ public class VentaService {
         // 1. Pedir el libro al catalog-service 
         LibroDto libro = catalogClient.obtenerLibro(request.getLibroId());
 
-        // 2. Pedir al catalog que baje el stock (negativo = restar).
+        // 2. Validar el cliente ANTES de tocar el stock, para no descontar
+        //    ejemplares si la venta no puede completarse.
+        ClienteDto cliente = obtenerClienteSeguro(request.getClienteId());
+
+        // 3. Pedir al catalog que baje el stock (negativo = restar).
         //    El propio catalog valida si hay stock suficiente y responde 409 si no.
         catalogClient.ajustarStock(request.getLibroId(),
                 new AjusteStockDto(-request.getCantidad()));
 
-        // 3. Registrar la venta con el precio real del libro
+        // 4. Registrar la venta con el precio real del libro
         Venta venta = new Venta();
         venta.setLibroId(request.getLibroId());
         venta.setCantidad(request.getCantidad());
         venta.setPrecioTotal(libro.getPrecio() * request.getCantidad());
-        venta.setClienteId(obtenerClienteSeguro(request.getClienteId()).getId());
+        venta.setClienteId(cliente.getId());
         venta.setFecha(LocalDateTime.now());
 
         Venta guardada = ventaRepository.save(venta);
-        return aResponse(guardada, libro.getTitulo());
+        return aResponse(guardada, libro.getTitulo(), cliente.getNombre());
     }
 
     public List<VentaResponse> listarTodas() {
     return ventaRepository.findAll()
             .stream()
-            .map(venta -> {
-                String titulo = obtenerTituloSeguro(venta.getLibroId());
-                return aResponse(venta, titulo);
-            })
+            .map(venta -> aResponse(venta,
+                    obtenerTituloSeguro(venta.getLibroId()),
+                    obtenerNombreClienteSeguro(venta.getClienteId())))
             .toList();
     }
 
-    private VentaResponse aResponse(Venta venta, String tituloLibro) {
+    private VentaResponse aResponse(Venta venta, String tituloLibro, String nombreCliente) {
         return new VentaResponse(
                 venta.getId(),
                 venta.getLibroId(),
@@ -69,7 +72,7 @@ public class VentaService {
                 venta.getCantidad(),
                 venta.getPrecioTotal(),
                 venta.getClienteId(),
-                obtenerNombreClienteSeguro(venta.getClienteId()),
+                nombreCliente,
                 venta.getFecha()
         );
     }
