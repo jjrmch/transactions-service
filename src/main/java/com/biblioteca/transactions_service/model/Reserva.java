@@ -11,24 +11,20 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Alquiler {
+public class Reserva {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long libroId;          
+    private Long libroId;
 
     private Long clienteId;
 
-    private LocalDateTime fechaAlquiler;
+    private LocalDateTime fechaReserva;
 
-    private LocalDateTime fechaLimiteDevolucion;
-
-    private LocalDateTime fechaDevolucion;
+    private LocalDateTime fechaExpiracion;
 
     @Enumerated(EnumType.STRING)
-    private EstadoAlquiler estado;
-
-    private Integer renovaciones;
+    private EstadoReserva estado;
 }

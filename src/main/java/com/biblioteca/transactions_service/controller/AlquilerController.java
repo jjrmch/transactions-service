@@ -34,4 +34,9 @@ public class AlquilerController {
     public AlquilerResponse devolver(@PathVariable Long id) {
         return alquilerService.devolver(id);
     }
+
+    @PostMapping("/{id}/renovacion")
+    public AlquilerResponse renovar(@PathVariable Long id) {
+        return alquilerService.renovar(id);
+    }
 }
