@@ -1,0 +1,106 @@
+package com.biblioteca.transactions_service.service;
+
+import com.biblioteca.transactions_service.client.CatalogClient;
+import com.biblioteca.transactions_service.client.CustomerClient;
+import com.biblioteca.transactions_service.dto.AjusteStockDto;
+import com.biblioteca.transactions_service.dto.ClienteDto;
+import com.biblioteca.transactions_service.dto.LibroDto;
+import com.biblioteca.transactions_service.dto.VentaRequest;
+import com.biblioteca.transactions_service.dto.VentaResponse;
+import com.biblioteca.transactions_service.exception.RecursoNoEncontradoException;
+import com.biblioteca.transactions_service.model.Venta;
+import com.biblioteca.transactions_service.repository.VentaRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+public class VentaService {
+
+    private final VentaRepository ventaRepository;
+    private final CatalogClient catalogClient;
+    private final CustomerClient customerClient;
+
+    public VentaService(VentaRepository ventaRepository, CatalogClient catalogClient, CustomerClient customerClient) {
+        this.ventaRepository = ventaRepository;
+        this.catalogClient = catalogClient;
+        this.customerClient = customerClient;
+    }
+
+    @Transactional
+    public VentaResponse vender(VentaRequest request) {
+        // 1. Pedir el libro al catalog-service 
+        LibroDto libro = catalogClient.obtenerLibro(request.getLibroId());
+
+        // 2. Validar el cliente ANTES de tocar el stock, para no descontar
+        //    ejemplares si la venta no puede completarse.
+        ClienteDto cliente = obtenerClienteSeguro(request.getClienteId());
+
+        // 3. Pedir al catalog que baje el stock (negativo = restar).
+        //    El propio catalog valida si hay stock suficiente y responde 409 si no.
+        catalogClient.ajustarStock(request.getLibroId(),
+                new AjusteStockDto(-request.getCantidad()));
+
+        // 4. Registrar la venta con el precio real del libro
+        Venta venta = new Venta();
+        venta.setLibroId(request.getLibroId());
+        venta.setCantidad(request.getCantidad());
+        venta.setPrecioTotal(libro.getPrecio() * request.getCantidad());
+        venta.setClienteId(cliente.getId());
+        venta.setFecha(LocalDateTime.now());
+
+        Venta guardada = ventaRepository.save(venta);
+        return aResponse(guardada, libro.getTitulo(), cliente.getNombre());
+    }
+
+    public List<VentaResponse> listarTodas() {
+    return ventaRepository.findAll()
+            .stream()
+            .map(venta -> aResponse(venta,
+                    obtenerTituloSeguro(venta.getLibroId()),
+                    obtenerNombreClienteSeguro(venta.getClienteId())))
+            .toList();
+    }
+
+    private VentaResponse aResponse(Venta venta, String tituloLibro, String nombreCliente) {
+        return new VentaResponse(
+                venta.getId(),
+                venta.getLibroId(),
+                tituloLibro,
+                venta.getCantidad(),
+                venta.getPrecioTotal(),
+                venta.getClienteId(),
+                nombreCliente,
+                venta.getFecha()
+        );
+    }
+
+    private String obtenerTituloSeguro(Long libroId) {
+    try {
+        LibroDto libro = catalogClient.obtenerLibro(libroId);
+        return libro.getTitulo();
+    } catch (Exception e) {
+        // Si el catalog no responde o el libro ya no existe,
+        // devolvemos null en vez de romper el listado entero.
+        return null;
+    }
+}
+
+private ClienteDto obtenerClienteSeguro(Long clienteId) {
+    try {
+        return customerClient.obtenerCliente(clienteId);
+    } catch (Exception e) {
+        throw new RecursoNoEncontradoException("Cliente no encontrado con id: " + clienteId);
+    }
+}
+
+private String obtenerNombreClienteSeguro(Long clienteId) {
+    try {
+        return customerClient.obtenerCliente(clienteId).getNombre();
+    } catch (Exception e) {
+        return null;
+    }
+}
+}
