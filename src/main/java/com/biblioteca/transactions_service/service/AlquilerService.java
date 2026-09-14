@@ -12,6 +12,7 @@ import com.biblioteca.transactions_service.exception.RecursoNoEncontradoExceptio
 import com.biblioteca.transactions_service.model.Alquiler;
 import com.biblioteca.transactions_service.model.EstadoAlquiler;
 import com.biblioteca.transactions_service.repository.AlquilerRepository;
+import feign.FeignException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -165,9 +166,11 @@ public class AlquilerService {
     private ClienteDto obtenerClienteSeguro(Long clienteId) {
         try {
             return customerClient.obtenerCliente(clienteId);
-        } catch (Exception e) {
+        } catch (FeignException.NotFound e) {
             throw new RecursoNoEncontradoException("Cliente no encontrado con id: " + clienteId);
         }
+        // Cualquier otra excepción (red, 5xx, timeout) se propaga: el
+        // GlobalExceptionHandler la traduce a 502/503 en vez de un falso 404.
     }
 
     private String obtenerNombreClienteSeguro(Long clienteId) {
