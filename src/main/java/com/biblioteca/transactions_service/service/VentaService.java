@@ -10,6 +10,7 @@ import com.biblioteca.transactions_service.dto.VentaResponse;
 import com.biblioteca.transactions_service.exception.RecursoNoEncontradoException;
 import com.biblioteca.transactions_service.model.Venta;
 import com.biblioteca.transactions_service.repository.VentaRepository;
+import feign.FeignException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -91,9 +92,11 @@ public class VentaService {
 private ClienteDto obtenerClienteSeguro(Long clienteId) {
     try {
         return customerClient.obtenerCliente(clienteId);
-    } catch (Exception e) {
+    } catch (FeignException.NotFound e) {
         throw new RecursoNoEncontradoException("Cliente no encontrado con id: " + clienteId);
     }
+    // Cualquier otra excepción (red, 5xx, timeout) se propaga: el
+    // GlobalExceptionHandler la traduce a 502/503 en vez de un falso 404.
 }
 
 private String obtenerNombreClienteSeguro(Long clienteId) {
