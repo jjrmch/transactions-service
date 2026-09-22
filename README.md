@@ -2,18 +2,23 @@
 
 Microservicio de transacciones de la plataforma de gestión de biblioteca. Gestiona ventas, alquileres, reservas y multas. Es el servicio que más lógica tiene: no guarda los libros ni los clientes, sino que los obtiene de los otros microservicios a través de OpenFeign, por lo que funciona como orquestador entre catalog-service y customer-service.
 
+Valida el JWT por su cuenta (solo ADMIN y BIBLIOTECARIO) y además propaga el token en sus llamadas Feign, para que catalog-service y customer-service apliquen también sus propias reglas.
+
 ## Qué hace
 
 - **Ventas**: registra una venta, calcula el precio total (precio del libro x cantidad) y descuenta el stock del catálogo
 - **Alquileres**: crea préstamos, permite renovarlos (+7 días) y devolverlos (al devolver se suma stock y, si hay retraso, se genera una multa)
 - **Reservas**: cola de espera para libros sin stock; se pueden confirmar (crea el alquiler) o cancelar
 - **Multas**: listado, filtro por cliente y registro de pago
+- **Seguridad con JWT (HS256)**: todos los endpoints exigen rol ADMIN o BIBLIOTECARIO
+- **Propagación del token**: cada llamada Feign a catalog-service y customer-service lleva el `Authorization` del usuario que hizo la petición
 - **Errores remotos propagados**: si el catálogo devuelve 409 por stock insuficiente o el cliente no existe (404), el error llega al frontend con el mensaje real del servicio remoto
 
 ## Stack
 
 - Java 17
 - Spring Boot 4.1
+- Spring Security (OAuth2 Resource Server) + Nimbus JWT
 - Spring Cloud 2025.1.2 (Eureka client, LoadBalancer)
 - OpenFeign (comunicación con catalog-service y customer-service)
 - Spring Data JPA
@@ -28,7 +33,7 @@ Necesitas PostgreSQL y el discovery-service (Eureka) levantados. Puedes levantar
 ./mvnw spring-boot:run
 ```
 
-La configuración de la base de datos se hace por variables de entorno:
+La configuración se hace por variables de entorno:
 
 | Variable | Descripción |
 |---|---|
@@ -36,10 +41,13 @@ La configuración de la base de datos se hace por variables de entorno:
 | `DB_USER` | Usuario de PostgreSQL |
 | `DB_PASSWORD` | Contraseña de PostgreSQL |
 | `EUREKA_URL` | URL del servidor Eureka (default `http://localhost:8761/eureka/`) |
+| `JWT_SECRET` | Secreto compartido para validar los JWT (mínimo 32 caracteres). **Debe ser el mismo que usa auth-service** |
 
 El servicio necesita que catalog-service y customer-service estén registrados en Eureka, porque los resuelve por nombre con LoadBalancer.
 
 ## Endpoints
+
+Todos exigen `Authorization: Bearer <token>` con rol ADMIN o BIBLIOTECARIO.
 
 | Método | Ruta | Descripción |
 |---|---|---|
@@ -62,6 +70,7 @@ El servicio necesita que catalog-service y customer-service estén registrados e
 
 - La venta valida primero que el cliente exista y después descuenta stock; si el catálogo rechaza la operación (stock insuficiente), la venta no se registra
 - Los listados hacen llamadas Feign "seguras": si un libro o cliente ya no existe, se muestra el dato como vacío en lugar de romper la lista
+- El `FeignAuthInterceptor` copia el header `Authorization` de la petición entrante en todas las llamadas Feign salientes
 - Al arrancar, el servicio refresca el registro de Eureka cada 5 segundos y desactiva la caché negativa del LoadBalancer para evitar el 503 "No servers available"
 
 ## Parte de un sistema más grande
@@ -72,6 +81,7 @@ La plataforma completa se compone de:
 - [gateway-service](https://github.com/jjrmch/gateway-service) — API Gateway (punto de entrada, `localhost:8080`)
 - [catalog-service](https://github.com/jjrmch/catalog-service) — catálogo de libros y stock
 - [customer-service](https://github.com/jjrmch/customer-service) — clientes
+- [auth-service](https://github.com/jjrmch/auth-service) — registro, login y emisión de JWT
 - [biblioteca-frontend](https://github.com/jjrmch/biblioteca-frontend) — panel web en React
 - [biblioteca-deploy](https://github.com/jjrmch/biblioteca-deploy) — docker-compose con el stack completo
 
@@ -79,6 +89,7 @@ La plataforma completa se compone de:
 
 - No hay tests de negocio todavía, solo el test de contexto de Spring.
 - La lógica de multas por retraso depende de que el servicio se ejecute en la zona horaria local.
+- Las operaciones de autoservicio para CLIENTE (comprar, reservar, ver sus multas) están pendientes: hoy todo lo gestiona el personal.
 
 ## Licencia
 
