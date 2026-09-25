@@ -1,5 +1,7 @@
 # Transactions Service
 
+![CI](https://github.com/jjrmch/transactions-service/actions/workflows/ci.yml/badge.svg)
+
 Microservicio de transacciones de la plataforma de gestión de biblioteca. Gestiona ventas, alquileres, reservas y multas. Es el servicio que más lógica tiene: no guarda los libros ni los clientes, sino que los obtiene de los otros microservicios a través de OpenFeign, por lo que funciona como orquestador entre catalog-service y customer-service.
 
 Valida el JWT por su cuenta (solo ADMIN y BIBLIOTECARIO) y además propaga el token en sus llamadas Feign, para que catalog-service y customer-service apliquen también sus propias reglas.
