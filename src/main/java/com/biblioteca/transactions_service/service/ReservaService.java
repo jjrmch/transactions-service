@@ -16,6 +16,7 @@ import com.biblioteca.transactions_service.model.EstadoReserva;
 import com.biblioteca.transactions_service.model.Reserva;
 import com.biblioteca.transactions_service.repository.AlquilerRepository;
 import com.biblioteca.transactions_service.repository.ReservaRepository;
+import feign.FeignException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -191,9 +192,11 @@ public class ReservaService {
     private ClienteDto obtenerClienteSeguro(Long clienteId) {
         try {
             return customerClient.obtenerCliente(clienteId);
-        } catch (Exception e) {
+        } catch (FeignException.NotFound e) {
             throw new RecursoNoEncontradoException("Cliente no encontrado con id: " + clienteId);
         }
+        // Cualquier otra excepción (red, 5xx, timeout) se propaga: el
+        // GlobalExceptionHandler la traduce a 502/503 en vez de un falso 404.
     }
 
     private String obtenerTituloSeguro(Long libroId) {
