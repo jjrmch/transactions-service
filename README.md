@@ -94,7 +94,7 @@ La plataforma completa se compone de:
 ./mvnw verify
 ```
 
-41 tests: unitarios de la lógica de negocio (ventas, alquileres con renovaciones y multas, reservas), del interceptor Feign que propaga el JWT y de integración del flujo de venta (`@SpringBootTest` + MockMvc + Testcontainers con PostgreSQL). Necesita Docker en marcha y se ejecutan también en CI (badge arriba).
+54 tests: unitarios de la lógica de negocio (ventas, alquileres con renovaciones y multas, reservas), del interceptor Feign que propaga el JWT e integración HTTP de todos los flujos (venta, alquiler, renovación, devolución, reserva, multa) incluida la propagación de errores remotos (`@SpringBootTest` + MockMvc + Testcontainers con PostgreSQL). Necesita Docker en marcha y se ejecutan también en CI (badge arriba).
 
 ## Por mejorar
 
