@@ -5,6 +5,17 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y este proyecto sigue [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.1.0] - 2026-10-08
+
+### Añadido
+
+- 13 tests de integración HTTP: alquiler, renovación y devolución, reservas (crear, confirmar y cancelar), multas (listado por cliente y pago) y propagación de errores remotos 404/409
+
+### Cambiado
+
+- Los tests de integración comparten un único contenedor PostgreSQL
+- README actualizado con el total de tests (54)
+
 ## [1.0.0] - 2026-10-05
 
 ### Añadido
